@@ -1,0 +1,21 @@
+# Secrets — never commit these
+.streamlit/secrets.toml
+
+# ChromaDB persistent data — each deployment gets its own fresh database
+chroma_data/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp audio files from voice agent
+voice.wav
+*.wav
