@@ -12,31 +12,18 @@ KEYWORDS: dict[str, list[str]] = {
 }
 
 
-def detect_patterns() -> dict:
-    """
-    Return emotion counts across all journal entries.
-
-    Each entry contributes at most 1 to each emotion bucket (avoids one
-    very long entry dominating the chart).  Entries are returned newest-first
-    from ChromaDB, so no extra sorting is needed for display.
-    """
-    docs, metadatas = get_entries()
+def detect_patterns(user_id: str) -> dict:
+    """Return emotion counts across all journal entries for a specific user."""
+    docs, metadatas = get_entries(user_id=user_id)
 
     if not docs:
-        return {
-            "stress": 0,
-            "sadness": 0,
-            "anger": 0,
-            "happiness": 0,
-            "total_entries": 0,
-        }
+        return {"stress": 0, "sadness": 0, "anger": 0, "happiness": 0, "total_entries": 0}
 
     counts: dict[str, int] = {emotion: 0 for emotion in KEYWORDS}
 
     for doc in docs:
         lower = doc.lower()
         for emotion, words in KEYWORDS.items():
-            # One hit per entry per emotion — avoids length bias
             if any(word in lower for word in words):
                 counts[emotion] += 1
 

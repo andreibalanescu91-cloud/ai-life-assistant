@@ -5,10 +5,9 @@ from memory.journal_db import get_entries
 from agents.insight_agent import detect_patterns
 
 
-def show_dashboard():
-
+def show_dashboard(user_id: str) -> None:
     try:
-        docs, metadatas = get_entries()
+        docs, metadatas = get_entries(user_id=user_id)
 
         if not docs:
             st.info("No journal entries yet. Start chatting to build your history.")
@@ -17,7 +16,7 @@ def show_dashboard():
         # ── Emotion pattern chart ──────────────────────────────────────────
         st.subheader("🧠 Emotion Patterns")
 
-        patterns = detect_patterns()
+        patterns = detect_patterns(user_id=user_id)
         emotion_labels = ["stress", "sadness", "anger", "happiness"]
 
         chart_df = pd.DataFrame({
@@ -48,16 +47,16 @@ def show_dashboard():
         st.subheader("📊 Summary")
 
         col1, col2, col3, col4, col5 = st.columns(5)
-        col1.metric("Total Entries",  patterns["total_entries"])
-        col2.metric("😰 Stress",      patterns["stress"])
-        col3.metric("😢 Sadness",     patterns["sadness"])
-        col4.metric("😠 Anger",       patterns["anger"])
-        col5.metric("😊 Happiness",   patterns["happiness"])
+        col1.metric("Total Entries", patterns["total_entries"])
+        col2.metric("😰 Stress",     patterns["stress"])
+        col3.metric("😢 Sadness",    patterns["sadness"])
+        col4.metric("😠 Anger",      patterns["anger"])
+        col5.metric("😊 Happiness",  patterns["happiness"])
 
         # ── Timeline ───────────────────────────────────────────────────────
         st.subheader("📅 Journal Timeline")
 
-        for doc, meta in zip(reversed(docs), reversed(metadatas)):
+        for doc, meta in zip(docs, metadatas):
             date = meta.get("date", "Unknown date")
             with st.expander(f"🗓 {date}"):
                 st.write(doc)

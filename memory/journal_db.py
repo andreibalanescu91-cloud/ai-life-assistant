@@ -1,37 +1,34 @@
-import chromadb
-import hashlib
 from datetime import datetime
-
-# PersistentClient keeps data on disk across restarts
-client = chromadb.PersistentClient(path="./chroma_data")
-
-try:
-    journal_collection = client.get_collection("journal")
-except Exception:
-    journal_collection = client.create_collection("journal")
+from supabase_client import get_supabase
 
 
-def save_entry(text: str) -> None:
-    """Save a journal entry with a stable, unique ID."""
-    # Combine text + timestamp so identical messages on different days are distinct
-    raw = f"{text}_{datetime.now().isoformat()}"
-    entry_id = hashlib.md5(raw.encode()).hexdigest()
+def save_entry(text: str, user_id: str) -> None:
+    """Save a journal entry for a specific user."""
+    get_supabase().table("journal_entries").insert({
+        "user_id": user_id,
+        "content": text,
+        "created_at": datetime.utcnow().isoformat(),
+    }).execute()
 
-    journal_collection.add(
-        documents=[text],
-        metadatas=[{"date": str(datetime.now())}],
-        ids=[entry_id],
+
+def get_entries(user_id: str, query: str | None = None, n: int = 50):
+    """
+    Return (documents, metadatas) for a user.
+    Basic keyword filter applied when query is provided (pgvector similarity
+    search is handled in memory_db for the chat pipeline).
+    """
+    supabase = get_supabase()
+
+    result = (
+        supabase.table("journal_entries")
+        .select("content, created_at")
+        .eq("user_id", user_id)
+        .order("created_at", desc=True)
+        .limit(n)
+        .execute()
     )
 
-
-def get_entries(query: str | None = None, n: int = 10):
-    """Return (documents, metadatas). Optionally filter by semantic query."""
-    if query:
-        results = journal_collection.query(
-            query_texts=[query],
-            n_results=n,
-        )
-        return results["documents"][0], results["metadatas"][0]
-
-    results = journal_collection.get()
-    return results["documents"], results["metadatas"]
+    rows = result.data or []
+    docs = [r["content"] for r in rows]
+    metas = [{"date": r["created_at"]} for r in rows]
+    return docs, metas

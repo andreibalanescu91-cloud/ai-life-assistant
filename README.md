@@ -1,90 +1,77 @@
-# 🤖 AI Life Coach
+# 🤖 myPeppy
 
-A personal AI companion that listens, remembers, and helps you grow — built with Streamlit and Claude.
+A personal AI companion with persistent memory, per-user accounts, and emotional insights.
 
-## Features
+## Stack
+- **Frontend** — Streamlit
+- **AI** — Claude (Anthropic) for chat, Voyage AI for embeddings
+- **Database** — Supabase (PostgreSQL + pgvector + Auth)
+- **Hosting** — Streamlit Cloud
 
-- **Chat** — Talk to your AI advisor. It detects your emotion, recalls past context, and responds with empathy + an action plan.
-- **Memory** — Semantic search across everything you've ever shared.
-- **Dashboard** — Visualise your emotional patterns over time.
+---
+
+## One-time Supabase setup
+
+### 1 — Create a Supabase project
+Go to [supabase.com](https://supabase.com) → New project → choose a region close to your users.
+
+### 2 — Run the SQL setup
+In your Supabase project: **SQL Editor → New query** → paste the contents of `supabase_setup.sql` → **Run**.
+
+This creates the `journal_entries` and `memories` tables, the pgvector index, and the `match_memories` RPC function.
+
+### 3 — Enable OAuth providers
+In Supabase: **Authentication → Providers** → enable **Google**, **GitHub**, **Facebook**.
+
+For each provider you need to create an OAuth app and paste in the credentials:
+
+**Google** — [console.cloud.google.com](https://console.cloud.google.com) → APIs & Services → Credentials → Create OAuth client → Web app. Set redirect URI to: `https://your-project.supabase.co/auth/v1/callback`
+
+**GitHub** — [github.com/settings/developers](https://github.com/settings/developers) → New OAuth App. Set callback URL to: `https://your-project.supabase.co/auth/v1/callback`
+
+**Facebook** — [developers.facebook.com](https://developers.facebook.com) → Create App → Facebook Login. Set redirect URI to: `https://your-project.supabase.co/auth/v1/callback`
+
+### 4 — Get your Voyage AI key (free embeddings)
+Sign up at [voyageai.com](https://www.voyageai.com) → API Keys → copy your key.
+
+---
+
+## Deploy to Streamlit Cloud
+
+### Secrets to add in Streamlit Cloud → Settings → Secrets:
+```toml
+ANTHROPIC_API_KEY  = "sk-ant-..."
+VOYAGE_API_KEY     = "pa-..."
+SUPABASE_URL       = "https://your-project.supabase.co"
+SUPABASE_ANON_KEY  = "your-anon-key"
+APP_URL            = "https://bypeppy.streamlit.app"
+```
+
+Find `SUPABASE_URL` and `SUPABASE_ANON_KEY` in your Supabase project under **Settings → API**.
 
 ---
 
 ## Project structure
 
 ```
-├── main.py                      # Streamlit entry point
-├── agents/
-│   ├── conversation_agent.py    # Orchestrates the full pipeline
-│   ├── emotion_agent.py         # Keyword-based emotion detection
-│   ├── reasoning_agent.py       # Claude API call (advice + plan)
-│   ├── planning_agent.py        # Pass-through wrapper
-│   ├── insight_agent.py         # Pattern detection for dashboard
-│   └── voice_agent.py           # Whisper voice transcription (optional)
-├── memory/
-│   ├── journal_db.py            # ChromaDB journal (persistent)
-│   └── memory_db.py             # ChromaDB memory store (persistent)
-├── dashboard/
-│   └── views.py                 # Streamlit dashboard tab
+├── main.py                       # Entry point + auth gate
+├── auth.py                       # Login/signup (Google, GitHub, Facebook, email)
+├── supabase_client.py            # Shared Supabase connection
+├── supabase_setup.sql            # Run once in Supabase SQL editor
 ├── requirements.txt
-└── .streamlit/
-    ├── config.toml              # Theme
-    └── secrets.toml             # API keys (local only, never commit)
+├── .streamlit/
+│   ├── config.toml
+│   └── secrets.toml              # Local only — never commit
+├── agents/
+│   ├── conversation_agent.py
+│   ├── emotion_agent.py
+│   ├── reasoning_agent.py        # Claude API
+│   ├── planning_agent.py
+│   ├── insight_agent.py
+│   └── voice_agent.py            # Local use only
+├── memory/
+│   ├── journal_db.py             # Supabase journal_entries table
+│   └── memory_db.py              # Supabase memories table + pgvector
+└── dashboard/
+    └── views.py
 ```
-
----
-
-## Deploy to Streamlit Cloud (free)
-
-### 1 — Push to GitHub
-
-```bash
-git init
-git add .
-git commit -m "initial commit"
-gh repo create ai-life-companion --public --push
-# or: git remote add origin https://github.com/YOUR_USERNAME/ai-life-companion.git
-#     git push -u origin main
-```
-
-> Make sure `.gitignore` is present before pushing — it keeps your secrets and chroma_data out of the repo.
-
-### 2 — Create the app on Streamlit Cloud
-
-1. Go to [share.streamlit.io](https://share.streamlit.io) and sign in with GitHub.
-2. Click **New app**.
-3. Select your repository, branch (`main`), and set the main file path to `main.py`.
-4. Click **Advanced settings → Secrets** and paste:
-
-```toml
-ANTHROPIC_API_KEY = "sk-ant-your-key-here"
-```
-
-5. Click **Deploy**. Your shareable link will appear within ~60 seconds.
-
----
-
-## Run locally
-
-```bash
-pip install -r requirements.txt
-
-# Add your key to .streamlit/secrets.toml (see template)
-
-streamlit run main.py
-```
-
----
-
-## Getting an Anthropic API key
-
-1. Sign up at [console.anthropic.com](https://console.anthropic.com)
-2. Go to **API Keys** → **Create Key**
-3. Copy the key (starts with `sk-ant-`) and paste it into Streamlit secrets
-
----
-
-## Notes
-
-- ChromaDB runs in-memory on Streamlit Cloud — data resets on each redeploy. For permanent storage, swap `PersistentClient` for a hosted vector DB (Pinecone, Weaviate, etc.).
-- Voice input requires `sounddevice` and a microphone — works locally, not on Streamlit Cloud.
