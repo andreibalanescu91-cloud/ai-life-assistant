@@ -1,17 +1,31 @@
-import requests
+import os
+import anthropic
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL = "llama3"
+# Client is initialised lazily so missing keys surface as a clean error message
+_client = None
+
+
+def _get_client() -> anthropic.Anthropic:
+    global _client
+    if _client is None:
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise RuntimeError(
+                "ANTHROPIC_API_KEY is not set. "
+                "Add it to your Streamlit Cloud secrets (Settings → Secrets)."
+            )
+        _client = anthropic.Anthropic(api_key=api_key)
+    return _client
 
 
 def analyze_problem(message: str, emotion: str, memories: list[str]) -> tuple[str, str]:
     """
-    Ask the LLM for both supportive advice AND an improvement plan in one call.
-    Returns (analysis, plan) as a tuple to avoid a second round-trip.
+    Ask Claude for supportive advice AND an improvement plan in one API call.
+    Returns (analysis, plan) as a tuple.
     """
     memory_text = "\n".join(f"- {m}" for m in memories) if memories else "None yet."
 
-    prompt = f"""You are a supportive AI life companion. A user has shared something with you.
+    prompt = f"""A user has shared something with you.
 
 User message: {message}
 Detected emotion: {emotion}
@@ -28,36 +42,35 @@ List 3-5 concrete, actionable steps the user can take to improve their situation
 """
 
     try:
-        r = requests.post(
-            OLLAMA_URL,
-            json={"model": MODEL, "prompt": prompt, "stream": False},
-            timeout=60,
+        client = _get_client()
+        response = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=1024,
+            system=(
+                "You are a supportive AI life companion. "
+                "You respond with empathy, warmth, and practical advice. "
+                "Always follow the exact two-section format requested by the user."
+            ),
+            messages=[{"role": "user", "content": prompt}],
         )
-        r.raise_for_status()
-        data = r.json()
 
-        if "response" not in data:
-            return f"Unexpected AI response: {data}", ""
+        raw = response.content[0].text
 
-        # Split on the plan header so we can return the two parts separately
-        raw = data["response"]
         if "### Step-by-Step Improvement Plan" in raw:
             parts = raw.split("### Step-by-Step Improvement Plan", 1)
             analysis = parts[0].replace("### Supportive Advice", "").strip()
             plan = parts[1].strip()
         else:
-            # Fallback: treat the whole response as advice
             analysis = raw.strip()
-            plan = "No structured plan returned — try rephrasing your message."
+            plan = ""
 
         return analysis, plan
 
-    except requests.exceptions.ConnectionError:
-        return (
-            "Could not reach Ollama. Make sure it is running on localhost:11434.",
-            "",
-        )
-    except requests.exceptions.Timeout:
-        return "Ollama timed out. The model may still be loading — please try again.", ""
+    except RuntimeError as e:
+        return str(e), ""
+    except anthropic.AuthenticationError:
+        return "Invalid API key. Check your Streamlit Cloud secrets.", ""
+    except anthropic.RateLimitError:
+        return "Rate limit reached. Please wait a moment and try again.", ""
     except Exception as e:
         return f"Unexpected error: {e}", ""

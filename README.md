@@ -1,4 +1,4 @@
-# 🤖 AI Life Companion
+# 🤖 AI Life Coach
 
 A personal AI companion that listens, remembers, and helps you grow — built with Streamlit and Claude.
 
