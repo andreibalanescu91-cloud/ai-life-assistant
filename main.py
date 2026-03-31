@@ -19,9 +19,9 @@ display_name = (user.user_metadata or {}).get("full_name") or user.email or "the
 # ── App shell ─────────────────────────────────────────────────────────────────
 col_title, col_user = st.columns([5, 1])
 with col_title:
-    st.title("🤖 myPeppy")
+    st.title("🤖 How are you today?")
 with col_user:
-    st.markdown(f"<div style='text-align:right;padding-top:14px'>👤 {display_name}</div>",
+    st.markdown(f"<div style='text-align:center;padding-top:14px'>👤 {display_name}</div>",
                 unsafe_allow_html=True)
     if st.button("Sign out", use_container_width=True):
         sign_out()
