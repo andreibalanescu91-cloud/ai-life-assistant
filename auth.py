@@ -14,8 +14,8 @@ def show_login_page() -> None:
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown("## 🤖 Welcome to myPeppy")
-        st.markdown("Sign in to save your chats, memories, and progress.")
+        st.markdown("## 🤖 Hi, I am Peppy, your AI emotional support. How can I help you today?")
+        st.markdown("Sign in to save your chats, memories, and mood progress.")
         st.divider()
 
         # ── OAuth providers ────────────────────────────────────────────────
